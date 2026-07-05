@@ -6,9 +6,12 @@ namespace CSM.Networking
     ///     A single entry in the public server list, as returned by the GS
     ///     GET /api/servers HTTP endpoint. Field names match the JSON response
     ///     exactly, since UnityEngine.JsonUtility matches by name.
+    ///     Deliberately a struct, not a class: this Unity engine version's
+    ///     JsonUtility fails to populate arrays of class-typed elements, but
+    ///     arrays of structs deserialize correctly.
     /// </summary>
     [Serializable]
-    public class PublicServerListing
+    public struct PublicServerListing
     {
         public string Name;
         public int CurrentPlayers;

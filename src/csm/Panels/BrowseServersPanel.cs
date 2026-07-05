@@ -53,7 +53,7 @@ namespace CSM.Panels
             this.AddScrollbar(_scrollablePanel);
 
             _refreshButton = this.CreateButton("Refresh", new Vector2(10, -430), 200);
-            _refreshButton.eventClick += (component, param) => FetchServerList();
+            _refreshButton.eventClick += (component, param) => new Thread(FetchServerList) { IsBackground = true }.Start();
 
             _closeButton = this.CreateButton("Close", new Vector2(220, -430), 200);
             _closeButton.eventClick += (component, param) =>
@@ -115,11 +115,27 @@ namespace CSM.Panels
             try
             {
                 string url = $"http://{CSM.Settings.ApiServer}:{CSM.Settings.ApiServerHttpPort}/api/servers";
-                string json = new CSMWebClient().DownloadString(url);
-                PublicServerListResponse response = JsonUtility.FromJson<PublicServerListResponse>(json);
-                PublicServerListing[] servers = response?.Servers ?? new PublicServerListing[0];
+                Log.Info($"[BrowseServersPanel] Requesting public server list from: {url}");
+                Log.Info($"[BrowseServersPanel] Fetch running on thread: {Thread.CurrentThread.ManagedThreadId}, IsBackground: {Thread.CurrentThread.IsBackground}");
 
-                ThreadHelper.dispatcher.Dispatch(() => UpdateRows(servers));
+                string json = new CSMWebClient().DownloadString(url);
+                Log.Info($"[BrowseServersPanel] Raw response: {json}");
+
+                // JsonUtility is a UnityEngine API and must only be called from the main
+                // thread (unlike DownloadString above, which is fine off-thread) - calling
+                // it here on a background thread silently fails to populate nested arrays.
+                ThreadHelper.dispatcher.Dispatch(() =>
+                {
+                    Log.Info($"[BrowseServersPanel] Parsing on thread: {Thread.CurrentThread.ManagedThreadId}");
+
+                    PublicServerListResponse response = JsonUtility.FromJson<PublicServerListResponse>(json);
+                    Log.Info($"[BrowseServersPanel] response == null: {response == null}, response.Servers == null: {response?.Servers == null}");
+
+                    PublicServerListing[] servers = response?.Servers ?? new PublicServerListing[0];
+                    Log.Info($"[BrowseServersPanel] Parsed {servers.Length} server(s) from response.");
+
+                    UpdateRows(servers);
+                });
             }
             catch (Exception e)
             {
