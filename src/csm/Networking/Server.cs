@@ -31,8 +31,12 @@ namespace CSM.Networking
         // The server
         private readonly LiteNetLib.NetManager _netServer;
 
-        // Keep alive tick tracker
-        private int _keepAlive = 1;
+        // Keep alive timer
+        private DateTime _lastKeepAlive = DateTime.MinValue;
+
+        // Must stay comfortably below the GS's KickTime (default 15s), since the
+        // registration entry expires if no heartbeat arrives before then.
+        private static readonly TimeSpan KeepAliveInterval = TimeSpan.FromSeconds(5);
 
         // Connected clients
         public Dictionary<int, CSMPlayer> ConnectedPlayers { get; } = new Dictionary<int, CSMPlayer>();
@@ -260,11 +264,11 @@ namespace CSM.Networking
             _netServer.NatPunchModule.PollEvents();
             _netServer.PollEvents();
             // Send keepalive to GS
-            if (_keepAlive % (60 * 5) == 0)
+            if (DateTime.Now.Subtract(_lastKeepAlive) >= KeepAliveInterval)
             {
                 SendToApiServer(BuildRegistrationCommand());
+                _lastKeepAlive = DateTime.Now;
             }
-            _keepAlive += 1;
         }
 
         /// <summary>
