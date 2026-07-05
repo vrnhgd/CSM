@@ -175,16 +175,30 @@ namespace CSM.Networking
             _netServer.NatPunchModule.Init(natPunchListener);
 
             // Register on server
+            SendToApiServer(BuildRegistrationCommand());
+        }
+
+        /// <summary>
+        ///     Builds a registration command containing the current connection and
+        ///     public-listing information for this server.
+        /// </summary>
+        private ServerRegistrationCommand BuildRegistrationCommand()
+        {
             string localIp = NetUtils.GetLocalIp(LocalAddrType.IPv4);
             if (string.IsNullOrEmpty(localIp))
                 localIp = NetUtils.GetLocalIp(LocalAddrType.IPv6);
 
-            SendToApiServer(new ServerRegistrationCommand
+            return new ServerRegistrationCommand
             {
                 LocalIp = localIp,
                 LocalPort = Config.Port,
-                Token = ServerToken
-            });
+                Token = ServerToken,
+                ServerName = Config.Name,
+                MaxPlayers = Config.MaxPlayers,
+                CurrentPlayers = ConnectedPlayers.Count,
+                HasPassword = !string.IsNullOrEmpty(Config.Password),
+                ListPublicly = Config.ListPublicly
+            };
         }
 
         /// <summary>
@@ -248,16 +262,7 @@ namespace CSM.Networking
             // Send keepalive to GS
             if (_keepAlive % (60 * 5) == 0)
             {
-                string localIp = NetUtils.GetLocalIp(LocalAddrType.IPv4);
-                if (string.IsNullOrEmpty(localIp))
-                    localIp = NetUtils.GetLocalIp(LocalAddrType.IPv6);
-
-                SendToApiServer(new ServerRegistrationCommand
-                {
-                    LocalIp = localIp,
-                    LocalPort = Config.Port,
-                    Token = ServerToken
-                });
+                SendToApiServer(BuildRegistrationCommand());
             }
             _keepAlive += 1;
         }
