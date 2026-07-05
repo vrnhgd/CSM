@@ -23,6 +23,7 @@ namespace CSM.Panels
         private UIButton _connectButton;
         private UIButton _closeButton;
         private UIButton _troubleshootingButton;
+        private UIButton _browseServersButton;
 
         private UICheckBox _passwordBox;
         private UICheckBox _rememberBox;
@@ -46,7 +47,7 @@ namespace CSM.Panels
             color = new Color32(110, 110, 110, 255);
 
             width = 360;
-            height = 585;
+            height = 620;
             relativePosition = PanelManager.GetCenterPosition(this);
 
             // Title Label
@@ -104,6 +105,14 @@ namespace CSM.Panels
             {
                 isVisible = false;
                 MultiplayerManager.Instance.CurrentClient.StopMainMenuEventProcessor();
+            };
+
+            // Browse public servers
+            _browseServersButton = this.CreateButton("Browse Public Servers", new Vector2(10, -580));
+            _browseServersButton.eventClick += (component, param) =>
+            {
+                isVisible = false;
+                PanelManager.ShowPanel<BrowseServersPanel>();
             };
 
             _connectionStatus = this.CreateLabel("", new Vector2(10, -420));
@@ -234,6 +243,29 @@ namespace CSM.Panels
                 _usernameField.text = username;
                 _passwordField.text = "";
                 _rememberBox.isChecked = false;
+            }
+
+            if (_connectionStatus != null)
+            {
+                Action();
+            }
+            else
+            {
+                _onStarted = Action;
+            }
+        }
+
+        /// <summary>
+        ///     Prefills the IP address and port fields, for example when joining
+        ///     a server picked from the public server browser.
+        /// </summary>
+        public void PrefillJoinAddress(string ip, int port)
+        {
+            void Action()
+            {
+                _ipAddressField.text = ip;
+                _portField.text = port.ToString();
+                _connectionStatus.text = "";
             }
 
             if (_connectionStatus != null)

@@ -19,6 +19,7 @@ namespace CSM
         private const string DefaultLastSeenReleaseNotes = "0.0";
         private const string DefaultApiServer = "api.citiesskylinesmultiplayer.com";
         private const int DefaultApiServerPort = 4240;
+        private const int DefaultApiServerHttpPort = 4241;
 
         public readonly SavedBool DebugLogging =
             new SavedBool(nameof(DebugLogging), SettingsFile, DefaultDebugLogging, true);
@@ -46,5 +47,11 @@ namespace CSM
 
         public readonly SavedInt ApiServerPort =
             new SavedInt(nameof(ApiServerPort), SettingsFile, DefaultApiServerPort, true);
+
+        /// <summary>
+        ///     The port that the API server's public server list HTTP endpoint runs on.
+        /// </summary>
+        public readonly SavedInt ApiServerHttpPort =
+            new SavedInt(nameof(ApiServerHttpPort), SettingsFile, DefaultApiServerHttpPort, true);
     }
 }

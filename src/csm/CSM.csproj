@@ -153,8 +153,10 @@
 		<Compile Include="Networking\CSMPlayer.cs" />
 		<Compile Include="Networking\IpAddress.cs" />
 		<Compile Include="Networking\MultiplayerManager.cs" />
+		<Compile Include="Networking\PublicServerListing.cs" />
 		<Compile Include="Networking\Server.cs" />
 		<Compile Include="Commands\TransactionHandler.cs" />
+		<Compile Include="Panels\BrowseServersPanel.cs" />
 		<Compile Include="Panels\ConnectedPlayersPanel.cs" />
 		<Compile Include="Panels\MessagePanel.cs" />
 		<Compile Include="Panels\PanelManager.cs" />
