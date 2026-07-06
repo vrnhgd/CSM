@@ -25,7 +25,6 @@ If ($RemoteModDirectory -eq "Default")
     Switch ($RemoteOS.ToLower())
     {
         "mac"     { $RemoteModDirectory = "~/Library/Application Support/Colossal Order/Cities_Skylines/Addons/Mods/CSM" }
-        "macos"   { $RemoteModDirectory = "~/Library/Application Support/Colossal Order/Cities_Skylines/Addons/Mods/CSM" }
         "linux"   { $RemoteModDirectory = "~/.local/share/Colossal Order/Cities_Skylines/Addons/Mods/CSM" }
         default
         {
