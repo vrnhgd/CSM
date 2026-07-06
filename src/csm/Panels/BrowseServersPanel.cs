@@ -200,7 +200,7 @@ namespace CSM.Panels
 
             foreach (PublicServerListing server in servers)
             {
-                string lockIcon = server.HasPassword ? " [Locked]" : "";
+                string lockIcon = server.HasPassword ? " [Protected]" : "";
                 string name = string.IsNullOrEmpty(server.Name) ? "Unnamed Server" : server.Name;
                 string label = $"{name}{lockIcon}\n{server.CurrentPlayers}/{server.MaxPlayers} players";
 
