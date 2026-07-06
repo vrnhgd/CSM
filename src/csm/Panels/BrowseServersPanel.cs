@@ -164,7 +164,8 @@ namespace CSM.Panels
                     CurrentPlayers = entry.TryGetValue("CurrentPlayers", out object cur) ? Convert.ToInt32(cur) : 0,
                     MaxPlayers = entry.TryGetValue("MaxPlayers", out object max) ? Convert.ToInt32(max) : 0,
                     HasPassword = entry.TryGetValue("HasPassword", out object pass) && (bool)pass,
-                    Address = entry.TryGetValue("Address", out object addr) ? (string)addr : ""
+                    Address = entry.TryGetValue("Address", out object addr) ? (string)addr : "",
+                    ServerToken = entry.TryGetValue("ServerToken", out object tok) ? (string)tok : "",
                 });
             }
 

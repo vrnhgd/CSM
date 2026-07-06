@@ -19,6 +19,7 @@ namespace CSM.GS.Http
         ///     The address (ip:port) that a client should connect to in order to join.
         /// </summary>
         public string Address { get; set; }
+        public string ServerToken { get; set; }
     }
 
     /// <summary>

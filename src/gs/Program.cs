@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Security.Principal;
 using CSM.GS.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -58,7 +59,8 @@ namespace CSM.GS
                         CurrentPlayers = server.CurrentPlayers,
                         MaxPlayers = server.MaxPlayers,
                         HasPassword = server.HasPassword,
-                        Address = $"{server.ExternalAddress.Address}:{server.ExternalAddress.Port}"
+                        Address = $"{server.ExternalAddress.Address}:{server.ExternalAddress.Port}",
+                        ServerToken = server.ServerToken,
                     }).ToArray()
                 });
 

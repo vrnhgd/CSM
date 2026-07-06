@@ -15,6 +15,7 @@ namespace CSM.Networking
         public int MaxPlayers;
         public bool HasPassword;
         public string Address;
+        public string ServerToken;
     }
 
     /// <summary>
