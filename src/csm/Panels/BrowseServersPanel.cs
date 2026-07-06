@@ -114,6 +114,11 @@ namespace CSM.Panels
         {
             try
             {
+                ThreadHelper.dispatcher.Dispatch(() =>
+                {
+                    _statusLabel.text = "Fetching server list...";
+                    _statusLabel.isVisible = true;
+                });
                 string url = $"http://{CSM.Settings.ApiServer}:{CSM.Settings.ApiServerHttpPort}/api/servers";
                 string json = new CSMWebClient().DownloadString(url);
 
