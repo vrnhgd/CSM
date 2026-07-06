@@ -115,27 +115,16 @@ namespace CSM.Panels
             try
             {
                 string url = $"http://{CSM.Settings.ApiServer}:{CSM.Settings.ApiServerHttpPort}/api/servers";
-                Log.Info($"[BrowseServersPanel] Requesting public server list from: {url}");
-                Log.Info($"[BrowseServersPanel] Fetch running on thread: {Thread.CurrentThread.ManagedThreadId}, IsBackground: {Thread.CurrentThread.IsBackground}");
-
                 string json = new CSMWebClient().DownloadString(url);
-                Log.Info($"[BrowseServersPanel] Raw response: {json}");
 
-                // JsonUtility is a UnityEngine API and must only be called from the main
-                // thread (unlike DownloadString above, which is fine off-thread) - calling
-                // it here on a background thread silently fails to populate nested arrays.
-                ThreadHelper.dispatcher.Dispatch(() =>
-                {
-                    Log.Info($"[BrowseServersPanel] Parsing on thread: {Thread.CurrentThread.ManagedThreadId}");
+                // Parsed with MiniJson (not UnityEngine.JsonUtility or Newtonsoft.Json - see
+                // MiniJson.cs for why neither works for this shape in this environment).
+                // MiniJson is plain managed code, so unlike JsonUtility it's safe to parse
+                // off the main thread here; only the resulting UI update needs to be
+                // marshaled back via Dispatch.
+                PublicServerListing[] servers = ParseServers(json);
 
-                    PublicServerListResponse response = JsonUtility.FromJson<PublicServerListResponse>(json);
-                    Log.Info($"[BrowseServersPanel] response == null: {response == null}, response.Servers == null: {response?.Servers == null}");
-
-                    PublicServerListing[] servers = response?.Servers ?? new PublicServerListing[0];
-                    Log.Info($"[BrowseServersPanel] Parsed {servers.Length} server(s) from response.");
-
-                    UpdateRows(servers);
-                });
+                ThreadHelper.dispatcher.Dispatch(() => UpdateRows(servers));
             }
             catch (Exception e)
             {
@@ -146,6 +135,35 @@ namespace CSM.Panels
                     _statusLabel.isVisible = true;
                 });
             }
+        }
+
+        private static PublicServerListing[] ParseServers(string json)
+        {
+            List<PublicServerListing> servers = new List<PublicServerListing>();
+
+            if (!(MiniJson.Parse(json) is Dictionary<string, object> root) ||
+                !root.TryGetValue("Servers", out object serversObj) ||
+                !(serversObj is List<object> serverList))
+            {
+                return servers.ToArray();
+            }
+
+            foreach (object item in serverList)
+            {
+                if (!(item is Dictionary<string, object> entry))
+                    continue;
+
+                servers.Add(new PublicServerListing
+                {
+                    Name = entry.TryGetValue("Name", out object name) ? (string)name : "",
+                    CurrentPlayers = entry.TryGetValue("CurrentPlayers", out object cur) ? Convert.ToInt32(cur) : 0,
+                    MaxPlayers = entry.TryGetValue("MaxPlayers", out object max) ? Convert.ToInt32(max) : 0,
+                    HasPassword = entry.TryGetValue("HasPassword", out object pass) && (bool)pass,
+                    Address = entry.TryGetValue("Address", out object addr) ? (string)addr : ""
+                });
+            }
+
+            return servers.ToArray();
         }
 
         private void UpdateRows(PublicServerListing[] servers)

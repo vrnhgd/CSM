@@ -172,6 +172,7 @@
 		<Compile Include="CSM.cs" />
 		<Compile Include="Properties\AssemblyInfo.cs" />
 		<Compile Include="Util\CSMWebClient.cs" />
+		<Compile Include="Util\MiniJson.cs" />
 		<Compile Include="Util\Serializer.cs" />
 	</ItemGroup>
 	<ItemGroup>
