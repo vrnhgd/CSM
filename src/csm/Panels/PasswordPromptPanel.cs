@@ -19,6 +19,7 @@ namespace CSM.Panels
     /// </summary>
     public class PasswordPromptPanel : UIPanel
     {
+        private UITextField _usernameField;
         private UITextField _passwordField;
         private UILabel _connectionStatus;
         private UIButton _connectButton;
@@ -35,24 +36,28 @@ namespace CSM.Panels
             color = new Color32(110, 110, 110, 255);
 
             width = 360;
-            height = 260;
+            height = 335;
             relativePosition = PanelManager.GetCenterPosition(this);
 
             this.CreateTitleLabel("Password Required", new Vector2(80, -20));
 
             this.CreateLabel("This server requires a password to join.", new Vector2(10, -60), 340);
 
-            _passwordField = this.CreateTextField("", new Vector2(10, -95));
+            this.CreateLabel("Username:", new Vector2(10, -95));
+            _usernameField = this.CreateTextField("", new Vector2(10, -120));
+
+            this.CreateLabel("Password:", new Vector2(10, -160));
+            _passwordField = this.CreateTextField("", new Vector2(10, -185));
             _passwordField.isPasswordField = true;
 
-            _connectionStatus = this.CreateLabel("", new Vector2(10, -140));
+            _connectionStatus = this.CreateLabel("", new Vector2(10, -225));
             _connectionStatus.textAlignment = UIHorizontalAlignment.Center;
             _connectionStatus.textColor = new Color32(255, 0, 0, 255);
 
-            _connectButton = this.CreateButton("Connect", new Vector2(10, -180), 165);
+            _connectButton = this.CreateButton("Connect", new Vector2(10, -265), 165);
             _connectButton.eventClick += OnConnectClick;
 
-            _cancelButton = this.CreateButton("Cancel", new Vector2(185, -180), 165);
+            _cancelButton = this.CreateButton("Cancel", new Vector2(185, -265), 165);
             _cancelButton.eventClick += (component, param) =>
             {
                 isVisible = false;
@@ -76,6 +81,18 @@ namespace CSM.Panels
             _targetIp = ip;
             _targetPort = port;
 
+            ClientConfig savedConfig = null;
+            ConfigData.Load(ref savedConfig, ConfigData.ClientFile);
+
+            string username = savedConfig?.Username;
+            if (string.IsNullOrEmpty(username))
+            {
+                username = PlatformService.active && PlatformService.personaName != null
+                    ? PlatformService.personaName
+                    : "Player";
+            }
+
+            _usernameField.text = username;
             _passwordField.text = "";
             _connectionStatus.text = "";
 
@@ -90,18 +107,14 @@ namespace CSM.Panels
                 return;
             }
 
-            ClientConfig savedConfig = null;
-            ConfigData.Load(ref savedConfig, ConfigData.ClientFile);
-
-            string username = savedConfig?.Username;
-            if (string.IsNullOrEmpty(username))
+            if (string.IsNullOrEmpty(_usernameField.text))
             {
-                username = PlatformService.active && PlatformService.personaName != null
-                    ? PlatformService.personaName
-                    : "Player";
+                _connectionStatus.textColor = new Color32(255, 0, 0, 255);
+                _connectionStatus.text = "Invalid Username";
+                return;
             }
 
-            ClientConfig clientConfig = new ClientConfig(_targetIp, _targetPort, username, _passwordField.text);
+            ClientConfig clientConfig = new ClientConfig(_targetIp, _targetPort, _usernameField.text, _passwordField.text);
 
             _connectionStatus.textColor = new Color32(255, 255, 0, 255);
             _connectionStatus.text = "Connecting...";
