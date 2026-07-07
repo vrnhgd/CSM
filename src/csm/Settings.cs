@@ -49,7 +49,9 @@ namespace CSM
             new SavedInt(nameof(ApiServerPort), SettingsFile, DefaultApiServerPort, true);
 
         /// <summary>
-        ///     The port that the API server's public server list HTTP endpoint runs on.
+        ///     The port that the API server's HTTP endpoint runs on. Only used for the
+        ///     update/version check (/api/version) - the public server list is served
+        ///     over UDP on ApiServerPort, not HTTP.
         /// </summary>
         public readonly SavedInt ApiServerHttpPort =
             new SavedInt(nameof(ApiServerHttpPort), SettingsFile, DefaultApiServerHttpPort, true);

@@ -1,19 +1,21 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using ColossalFramework.Threading;
+using System.Net;
 using ColossalFramework.UI;
 using CSM.API;
+using CSM.GS.Commands;
+using CSM.GS.Commands.Data.ApiServer;
 using CSM.Helpers;
 using CSM.Networking;
-using CSM.Util;
+using LiteNetLib;
 using UnityEngine;
 
 namespace CSM.Panels
 {
     public class BrowseServersPanel : UIPanel
     {
-        private const int PollIntervalMs = 10000;
+        private static readonly TimeSpan RequestInterval = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan ResponseTimeout = TimeSpan.FromSeconds(5);
 
         private UIScrollablePanel _scrollablePanel;
         private UILabel _statusLabel;
@@ -23,8 +25,9 @@ namespace CSM.Panels
         private readonly List<UILabel> _rowLabels = new List<UILabel>();
         private readonly List<UIButton> _joinButtons = new List<UIButton>();
 
-        private Thread _pollThread;
-        private volatile bool _polling;
+        private LiteNetLib.NetManager _netManager;
+        private DateTime _lastRequestSent = DateTime.MinValue;
+        private bool _awaitingResponse;
 
         public override void Start()
         {
@@ -53,7 +56,7 @@ namespace CSM.Panels
             this.AddScrollbar(_scrollablePanel);
 
             _refreshButton = this.CreateButton("Refresh", new Vector2(10, -430), 200);
-            _refreshButton.eventClick += (component, param) => new Thread(FetchServerList) { IsBackground = true }.Start();
+            _refreshButton.eventClick += (component, param) => SendServerListRequest();
 
             _closeButton = this.CreateButton("Close", new Vector2(220, -430), 200);
             _closeButton.eventClick += (component, param) =>
@@ -61,118 +64,95 @@ namespace CSM.Panels
                 isVisible = false;
             };
 
-            eventVisibilityChanged += (component, visible) =>
+            SetupNetworking();
+        }
+
+        public override void Update()
+        {
+            _netManager?.PollEvents();
+
+            if (!isVisible)
+                return;
+
+            if (DateTime.Now.Subtract(_lastRequestSent) >= RequestInterval)
             {
-                if (visible)
-                {
-                    StartPolling();
-                }
-                else
-                {
-                    StopPolling();
-                }
-            };
+                SendServerListRequest();
+            }
+            else if (_awaitingResponse && DateTime.Now.Subtract(_lastRequestSent) >= ResponseTimeout)
+            {
+                _awaitingResponse = false;
+                _statusLabel.text = "Failed to reach the API server. Check your CSM API Server settings.";
+                _statusLabel.isVisible = true;
+            }
         }
 
         public override void OnDestroy()
         {
-            StopPolling();
+            _netManager?.Stop();
             base.OnDestroy();
         }
 
-        private void StartPolling()
+        private void SetupNetworking()
         {
-            if (_pollThread != null)
+            EventBasedNetListener listener = new EventBasedNetListener();
+            listener.NetworkReceiveUnconnectedEvent += OnNetworkReceiveUnconnectedEvent;
+
+            _netManager = new LiteNetLib.NetManager(listener) { UnconnectedMessagesEnabled = true };
+            _netManager.Start();
+        }
+
+        private void OnNetworkReceiveUnconnectedEvent(IPEndPoint from, NetPacketReader reader, UnconnectedMessageType type)
+        {
+            if (type != UnconnectedMessageType.BasicMessage)
                 return;
 
-            _polling = true;
-            _pollThread = new Thread(PollLoop) { IsBackground = true };
-            _pollThread.Start();
-        }
-
-        private void StopPolling()
-        {
-            _polling = false;
-            _pollThread = null;
-        }
-
-        private void PollLoop()
-        {
-            while (_polling)
+            try
             {
-                FetchServerList();
+                // Only allow responses from the API server
+                if (!Equals(from.Address, IpAddress.GetIpv4(CSM.Settings.ApiServer)))
+                    return;
 
-                // Sleep in small increments so we react quickly when the panel is hidden.
-                for (int i = 0; i < PollIntervalMs / 100 && _polling; i++)
-                {
-                    Thread.Sleep(100);
-                }
+                CommandReceiver.Parse(reader);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"Encountered an error while reading public server list response: {ex}");
             }
         }
 
-        private void FetchServerList()
+        private void SendServerListRequest()
         {
             try
             {
-                ThreadHelper.dispatcher.Dispatch(() =>
+                IPAddress apiServer = IpAddress.GetIpv4(CSM.Settings.ApiServer);
+                byte[] data = ApiCommand.Serialize(new ServerListRequestCommand());
+                _netManager.SendUnconnectedMessage(data, new IPEndPoint(apiServer, CSM.Settings.ApiServerPort));
+
+                _lastRequestSent = DateTime.Now;
+                _awaitingResponse = true;
+
+                if (_rowLabels.Count == 0 && _joinButtons.Count == 0)
                 {
-                    _statusLabel.text = "Fetching server list...";
+                    _statusLabel.text = "Loading...";
                     _statusLabel.isVisible = true;
-                });
-                string url = $"http://{CSM.Settings.ApiServer}:{CSM.Settings.ApiServerHttpPort}/api/servers";
-                string json = new CSMWebClient().DownloadString(url);
-
-                // Parsed with MiniJson (not UnityEngine.JsonUtility or Newtonsoft.Json - see
-                // MiniJson.cs for why neither works for this shape in this environment).
-                // MiniJson is plain managed code, so unlike JsonUtility it's safe to parse
-                // off the main thread here; only the resulting UI update needs to be
-                // marshaled back via Dispatch.
-                PublicServerListing[] servers = ParseServers(json);
-
-                ThreadHelper.dispatcher.Dispatch(() => UpdateRows(servers));
+                }
             }
             catch (Exception e)
             {
-                Log.Warn($"Failed to fetch public server list: {e.Message}");
-                ThreadHelper.dispatcher.Dispatch(() =>
-                {
-                    _statusLabel.text = "Failed to fetch the public server list.";
-                    _statusLabel.isVisible = true;
-                });
+                Log.Warn($"Failed to send public server list request: {e.Message}");
             }
         }
 
-        private static PublicServerListing[] ParseServers(string json)
+        /// <summary>
+        ///     Called by ServerListResultHandler when a response arrives.
+        /// </summary>
+        public void OnServerListReceived(PublicServerEntry[] servers)
         {
-            List<PublicServerListing> servers = new List<PublicServerListing>();
-
-            if (!(MiniJson.Parse(json) is Dictionary<string, object> root) ||
-                !root.TryGetValue("Servers", out object serversObj) ||
-                !(serversObj is List<object> serverList))
-            {
-                return servers.ToArray();
-            }
-
-            foreach (object item in serverList)
-            {
-                if (!(item is Dictionary<string, object> entry))
-                    continue;
-
-                servers.Add(new PublicServerListing
-                {
-                    Name = entry.TryGetValue("Name", out object name) ? (string)name : "",
-                    CurrentPlayers = entry.TryGetValue("CurrentPlayers", out object cur) ? Convert.ToInt32(cur) : 0,
-                    MaxPlayers = entry.TryGetValue("MaxPlayers", out object max) ? Convert.ToInt32(max) : 0,
-                    HasPassword = entry.TryGetValue("HasPassword", out object pass) && (bool)pass,
-                    Address = entry.TryGetValue("Address", out object addr) ? (string)addr : "",
-                    ServerToken = entry.TryGetValue("ServerToken", out object tok) ? (string)tok : "",
-                });
-            }
-
-            return servers.ToArray();
+            _awaitingResponse = false;
+            UpdateRows(servers);
         }
 
-        private void UpdateRows(PublicServerListing[] servers)
+        private void UpdateRows(PublicServerEntry[] servers)
         {
             foreach (UILabel label in _rowLabels)
             {
@@ -199,7 +179,7 @@ namespace CSM.Panels
             int rowOffset = 0;
             const int rowHeight = 40;
 
-            foreach (PublicServerListing server in servers)
+            foreach (PublicServerEntry server in servers)
             {
                 string lockIcon = server.HasPassword ? " [Protected]" : "";
                 string name = string.IsNullOrEmpty(server.Name) ? "Unnamed Server" : server.Name;
@@ -211,26 +191,35 @@ namespace CSM.Panels
                 _rowLabels.Add(serverLabel);
 
                 UIButton joinButton = _scrollablePanel.CreateButton("Join", new Vector2(280, rowOffset), 100, rowHeight);
-                string address = server.Address;
-                joinButton.eventClick += (component, param) => OnJoinClick(address);
+                PublicServerEntry capturedServer = server;
+                joinButton.eventClick += (component, param) => OnJoinClick(capturedServer);
                 _joinButtons.Add(joinButton);
 
                 rowOffset -= rowHeight;
             }
         }
 
-        private void OnJoinClick(string address)
+        private void OnJoinClick(PublicServerEntry server)
         {
-            string[] parts = address.Split(':');
-            if (parts.Length != 2 || !int.TryParse(parts[1], out int port))
-            {
-                Log.Warn($"Received invalid server address from public server list: {address}");
-                return;
-            }
-
             isVisible = false;
 
             JoinGamePanel joinPanel = PanelManager.ShowPanel<JoinGamePanel>();
+
+            // Prefer the NAT-relay token: it works even when the host's direct
+            // address isn't reachable (e.g. behind NAT without port forwarding).
+            if (!string.IsNullOrEmpty(server.ServerToken))
+            {
+                joinPanel.PrefillJoinAddress($"token:{server.ServerToken}", 0);
+                return;
+            }
+
+            string[] parts = server.Address.Split(':');
+            if (parts.Length != 2 || !int.TryParse(parts[1], out int port))
+            {
+                Log.Warn($"Received invalid server address from public server list: {server.Address}");
+                return;
+            }
+
             joinPanel.PrefillJoinAddress(parts[0], port);
         }
     }

@@ -107,10 +107,15 @@
 		<Compile Include="..\gs\Commands\Data\ApiServer\ApiCommandBase.cs" Link="GS\Commands\Data\ApiServer\ApiCommandBase.cs" />
 		<Compile Include="..\gs\Commands\Data\ApiServer\PortCheckRequestCommand.cs" Link="GS\Commands\Data\ApiServer\PortCheckRequestCommand.cs" />
 		<Compile Include="..\gs\Commands\Data\ApiServer\PortCheckResultCommand.cs" Link="GS\Commands\Data\ApiServer\PortCheckResultCommand.cs" />
+		<Compile Include="..\gs\Commands\Data\ApiServer\PublicServerEntry.cs" Link="GS\Commands\Data\ApiServer\PublicServerEntry.cs" />
+		<Compile Include="..\gs\Commands\Data\ApiServer\ServerListRequestCommand.cs" Link="GS\Commands\Data\ApiServer\ServerListRequestCommand.cs" />
+		<Compile Include="..\gs\Commands\Data\ApiServer\ServerListResultCommand.cs" Link="GS\Commands\Data\ApiServer\ServerListResultCommand.cs" />
 		<Compile Include="..\gs\Commands\Data\ApiServer\ServerRegistrationCommand.cs" Link="GS\Commands\Data\ApiServer\ServerRegistrationCommand.cs" />
 		<Compile Include="GS\Commands\Handler\ApiServer\ApiCommandHandler.cs" />
 		<Compile Include="GS\Commands\Handler\ApiServer\PortCheckRequestHandler.cs" />
 		<Compile Include="GS\Commands\Handler\ApiServer\PortCheckResultHandler.cs" />
+		<Compile Include="GS\Commands\Handler\ApiServer\ServerListRequestHandler.cs" />
+		<Compile Include="GS\Commands\Handler\ApiServer\ServerListResultHandler.cs" />
 		<Compile Include="GS\Commands\Handler\ApiServer\ServerRegistrationHandler.cs" />
 		<Compile Include="Helpers\AssemblyHelper.cs" />
 		<Compile Include="Helpers\SaveHelpers.cs" />
@@ -153,7 +158,6 @@
 		<Compile Include="Networking\CSMPlayer.cs" />
 		<Compile Include="Networking\IpAddress.cs" />
 		<Compile Include="Networking\MultiplayerManager.cs" />
-		<Compile Include="Networking\PublicServerListing.cs" />
 		<Compile Include="Networking\Server.cs" />
 		<Compile Include="Commands\TransactionHandler.cs" />
 		<Compile Include="Panels\BrowseServersPanel.cs" />
@@ -172,7 +176,6 @@
 		<Compile Include="CSM.cs" />
 		<Compile Include="Properties\AssemblyInfo.cs" />
 		<Compile Include="Util\CSMWebClient.cs" />
-		<Compile Include="Util\MiniJson.cs" />
 		<Compile Include="Util\Serializer.cs" />
 	</ItemGroup>
 	<ItemGroup>
