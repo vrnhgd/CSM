@@ -69,10 +69,9 @@ namespace CSM.Panels
 
         public override void Update()
         {
-            _netManager?.PollEvents();
-
             if (!isVisible)
                 return;
+            _netManager?.PollEvents();
 
             if (DateTime.Now.Subtract(_lastRequestSent) >= RequestInterval)
             {
