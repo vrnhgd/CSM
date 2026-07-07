@@ -201,18 +201,6 @@ namespace CSM.Panels
 
         private void OnJoinClick(PublicServerEntry server)
         {
-            isVisible = false;
-
-            JoinGamePanel joinPanel = PanelManager.ShowPanel<JoinGamePanel>();
-
-            // Prefer the NAT-relay token: it works even when the host's direct
-            // address isn't reachable (e.g. behind NAT without port forwarding).
-            if (!string.IsNullOrEmpty(server.ServerToken))
-            {
-                joinPanel.PrefillJoinAddress($"token:{server.ServerToken}", 0);
-                return;
-            }
-
             string[] parts = server.Address.Split(':');
             if (parts.Length != 2 || !int.TryParse(parts[1], out int port))
             {
@@ -220,7 +208,17 @@ namespace CSM.Panels
                 return;
             }
 
-            joinPanel.PrefillJoinAddress(parts[0], port);
+            isVisible = false;
+
+            if (server.HasPassword)
+            {
+                PanelManager.ShowPanel<PasswordPromptPanel>().Show(parts[0], port);
+            }
+            else
+            {
+                JoinGamePanel joinPanel = PanelManager.ShowPanel<JoinGamePanel>();
+                joinPanel.JoinServer(parts[0], port);
+            }
         }
     }
 }

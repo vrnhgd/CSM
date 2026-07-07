@@ -256,16 +256,20 @@ namespace CSM.Panels
         }
 
         /// <summary>
-        ///     Prefills the IP address and port fields, for example when joining
-        ///     a server picked from the public server browser.
+        ///     Fills in the IP address and port fields and immediately connects,
+        ///     for example when joining a password-less server picked from the
+        ///     public server browser - skips the extra manual "Connect to Server"
+        ///     click. Password-protected servers are instead routed to
+        ///     PasswordPromptPanel, which doesn't expose the IP/port fields.
         /// </summary>
-        public void PrefillJoinAddress(string ip, int port)
+        public void JoinServer(string ip, int port)
         {
             void Action()
             {
                 _ipAddressField.text = ip;
                 _portField.text = port.ToString();
                 _connectionStatus.text = "";
+                OnConnectButtonClick(null, null);
             }
 
             if (_connectionStatus != null)
