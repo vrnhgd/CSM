@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using ColossalFramework.PlatformServices;
 using ColossalFramework.UI;
 using CSM.API;
 using CSM.GS.Commands;
 using CSM.GS.Commands.Data.ApiServer;
 using CSM.Helpers;
 using CSM.Networking;
+using CSM.Networking.Config;
 using LiteNetLib;
 using UnityEngine;
 
@@ -200,24 +202,39 @@ namespace CSM.Panels
 
         private void OnJoinClick(PublicServerEntry server)
         {
-            string[] parts = server.Address.Split(':');
-            if (parts.Length != 2 || !int.TryParse(parts[1], out int port))
+            if (string.IsNullOrEmpty(server.ServerToken))
             {
-                Log.Warn($"Received invalid server address from public server list: {server.Address}");
+                Log.Warn($"Public server list entry for '{server.Name}' has no token, cannot join.");
                 return;
             }
 
             isVisible = false;
 
+            string username = GetSavedOrDefaultUsername();
+
             if (server.HasPassword)
             {
-                PanelManager.ShowPanel<PasswordPromptPanel>().Show(parts[0], port);
+                PanelManager.ShowPanel<PasswordPromptPanel>().Show(server.ServerToken, username);
             }
             else
             {
-                JoinGamePanel joinPanel = PanelManager.ShowPanel<JoinGamePanel>();
-                joinPanel.JoinServer(parts[0], port);
+                JoinGamePanel.JoinByToken(server.ServerToken, username);
             }
+        }
+
+        private static string GetSavedOrDefaultUsername()
+        {
+            ClientConfig savedConfig = null;
+            ConfigData.Load(ref savedConfig, ConfigData.ClientFile);
+
+            if (!string.IsNullOrEmpty(savedConfig?.Username))
+            {
+                return savedConfig.Username;
+            }
+
+            return PlatformService.active && PlatformService.personaName != null
+                ? PlatformService.personaName
+                : "Player";
         }
     }
 }

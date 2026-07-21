@@ -1,21 +1,19 @@
-using ColossalFramework.PlatformServices;
-using ColossalFramework.Threading;
 using ColossalFramework.UI;
-using CSM.API;
 using CSM.API.Commands;
 using CSM.Helpers;
 using CSM.Networking;
-using CSM.Networking.Config;
 using UnityEngine;
 
 namespace CSM.Panels
 {
     /// <summary>
     ///     A focused password-entry prompt used when joining a password-protected
-    ///     server from the public server browser. Deliberately doesn't expose the
-    ///     target IP/port in the UI - unlike manually typing an address into
-    ///     JoinGamePanel, a browsed server's address wasn't something the player
-    ///     entered themselves, so there's no need to display it.
+    ///     server (from the public server browser, or a retry after JoinByToken
+    ///     failed with a password-related error). Deliberately doesn't expose the
+    ///     target token/address in the UI - a browsed server's connection details
+    ///     weren't something the player entered themselves, so there's no need to
+    ///     display them. Delegates the actual connection attempt to
+    ///     JoinGamePanel.JoinByToken.
     /// </summary>
     public class PasswordPromptPanel : UIPanel
     {
@@ -25,8 +23,7 @@ namespace CSM.Panels
         private UIButton _connectButton;
         private UIButton _cancelButton;
 
-        private string _targetIp;
-        private int _targetPort;
+        private string _targetToken;
 
         public override void Start()
         {
@@ -73,28 +70,30 @@ namespace CSM.Panels
         }
 
         /// <summary>
-        ///     Shows the prompt for the given target server. The IP/port are kept
-        ///     only in memory here, never rendered in the UI.
+        ///     Shows the prompt for the given target server token. The token is
+        ///     kept only in memory here, never rendered in the UI.
         /// </summary>
-        public void Show(string ip, int port)
+        /// <param name="token">The server's NAT-relay token.</param>
+        /// <param name="username">The username to pre-fill (editable).</param>
+        /// <param name="errorMessage">
+        ///     An optional error to display, e.g. when re-showing this prompt
+        ///     after a wrong password was entered.
+        /// </param>
+        public void Show(string token, string username, string errorMessage = null)
         {
-            _targetIp = ip;
-            _targetPort = port;
-
-            ClientConfig savedConfig = null;
-            ConfigData.Load(ref savedConfig, ConfigData.ClientFile);
-
-            string username = savedConfig?.Username;
-            if (string.IsNullOrEmpty(username))
-            {
-                username = PlatformService.active && PlatformService.personaName != null
-                    ? PlatformService.personaName
-                    : "Player";
-            }
-
+            _targetToken = token;
             _usernameField.text = username;
             _passwordField.text = "";
-            _connectionStatus.text = "";
+
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                _connectionStatus.textColor = new Color32(255, 0, 0, 255);
+                _connectionStatus.text = errorMessage;
+            }
+            else
+            {
+                _connectionStatus.text = "";
+            }
 
             isVisible = true;
         }
@@ -103,6 +102,7 @@ namespace CSM.Panels
         {
             if (MultiplayerManager.Instance.CurrentRole == MultiplayerRole.Server)
             {
+                _connectionStatus.textColor = new Color32(255, 0, 0, 255);
                 _connectionStatus.text = "Already Running Server";
                 return;
             }
@@ -114,30 +114,8 @@ namespace CSM.Panels
                 return;
             }
 
-            ClientConfig clientConfig = new ClientConfig(_targetIp, _targetPort, _usernameField.text, _passwordField.text);
-
-            _connectionStatus.textColor = new Color32(255, 255, 0, 255);
-            _connectionStatus.text = "Connecting...";
-
-            MultiplayerManager.Instance.CurrentClient.StartMainMenuEventProcessor();
-
-            MultiplayerManager.Instance.ConnectToServer(clientConfig, success =>
-            {
-                ThreadHelper.dispatcher.Dispatch(() =>
-                {
-                    if (!success)
-                    {
-                        _connectionStatus.textColor = new Color32(255, 0, 0, 255);
-                        _connectionStatus.text = MultiplayerManager.Instance.CurrentClient.ConnectionMessage;
-                    }
-                    else
-                    {
-                        _connectionStatus.text = "";
-                        isVisible = false;
-                        MultiplayerManager.Instance.BlockGameFirstJoin();
-                    }
-                });
-            });
+            isVisible = false;
+            JoinGamePanel.JoinByToken(_targetToken, _usernameField.text, _passwordField.text);
         }
     }
 }

@@ -2,6 +2,7 @@
 using ColossalFramework.PlatformServices;
 using ColossalFramework.Threading;
 using ColossalFramework.UI;
+using CSM.API;
 using CSM.API.Commands;
 using CSM.Helpers;
 using CSM.Mods;
@@ -256,30 +257,54 @@ namespace CSM.Panels
         }
 
         /// <summary>
-        ///     Fills in the IP address and port fields and immediately connects,
-        ///     for example when joining a password-less server picked from the
-        ///     public server browser - skips the extra manual "Connect to Server"
-        ///     click. Password-protected servers are instead routed to
-        ///     PasswordPromptPanel, which doesn't expose the IP/port fields.
+        ///     Attempts to join a server by its NAT-relay token (rather than a
+        ///     direct IP/port). Shared by the Steam friend-invite join flow and
+        ///     the public server browser join flow, so both behave consistently:
+        ///     on success, hide this panel and load into the game; on failure,
+        ///     show a password prompt if that's the failure reason, otherwise
+        ///     fall back to this panel's manual form with the error shown.
         /// </summary>
-        public void JoinServer(string ip, int port)
+        public static void JoinByToken(string token, string username, string password = null)
         {
-            void Action()
-            {
-                _ipAddressField.text = ip;
-                _portField.text = port.ToString();
-                _connectionStatus.text = "";
-                OnConnectButtonClick(null, null);
-            }
+            Log.Info("Join request for " + token);
 
-            if (_connectionStatus != null)
+            JoinGamePanel join = PanelManager.ShowPanel<JoinGamePanel>();
+            join.SetConnecting();
+
+            MultiplayerManager.Instance.CurrentClient.StartMainMenuEventProcessor();
+
+            ClientConfig clientConfig = password != null
+                ? new ClientConfig(token, username, password)
+                : new ClientConfig(token, username);
+
+            MultiplayerManager.Instance.ConnectToServer(clientConfig, success =>
             {
-                Action();
-            }
-            else
-            {
-                _onStarted = Action;
-            }
+                if (success)
+                {
+                    ThreadHelper.dispatcher.Dispatch(() =>
+                    {
+                        MultiplayerManager.Instance.BlockGameFirstJoin();
+                        PanelManager.HidePanel<JoinGamePanel>();
+                    });
+                    return;
+                }
+
+                string reason = MultiplayerManager.Instance.CurrentClient.ConnectionMessage;
+
+                ThreadHelper.dispatcher.Dispatch(() =>
+                {
+                    if (reason != null && reason.IndexOf("password", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        PanelManager.HidePanel<JoinGamePanel>();
+                        PanelManager.ShowPanel<PasswordPromptPanel>().Show(token, username, reason);
+                    }
+                    else
+                    {
+                        JoinGamePanel panel = PanelManager.ShowPanel<JoinGamePanel>();
+                        panel.FillFieldsOnError(token, username, reason);
+                    }
+                });
+            });
         }
 
         public void SetConnecting()
