@@ -82,7 +82,7 @@ namespace CSM.Panels
             else if (_awaitingResponse && DateTime.Now.Subtract(_lastRequestSent) >= ResponseTimeout)
             {
                 _awaitingResponse = false;
-                _statusLabel.text = "Failed to reach the API server. Check your CSM API Server settings.";
+                _statusLabel.text = "Failed to reach the API server.\nCheck your CSM API Server settings.";
                 _statusLabel.isVisible = true;
             }
         }
