@@ -13,7 +13,6 @@ namespace CSM.GS.Commands.Handler.ApiServer
                 CurrentPlayers = server.CurrentPlayers,
                 MaxPlayers = server.MaxPlayers,
                 HasPassword = server.HasPassword,
-                Address = $"{server.ExternalAddress.Address}:{server.ExternalAddress.Port}",
                 ServerToken = server.Token
             }).ToArray();
 
